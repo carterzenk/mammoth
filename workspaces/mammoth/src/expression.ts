@@ -17,11 +17,13 @@ import {
   Token,
 } from './tokens';
 import { DbConfig, GetResultType } from './config';
-import { ExpressionConjunctionType, Err, GetDataType } from './types';
+import { Err, GetDataType } from './types';
 
 import { Column } from './column';
 import { TableDefinition } from './table';
 import { wrapQuotes } from './naming';
+
+type ConjunctionType = 'AND' | 'OR';
 
 export interface SharedExpression<
   Config extends DbConfig,
@@ -320,7 +322,7 @@ export class InternalExpression<
     private readonly tokens: Token[],
     private readonly name: Name,
     private readonly nameIsAlias = false,
-    private readonly conjunctionType?: ExpressionConjunctionType,
+    private readonly conjunctionType?: ConjunctionType,
   ) {}
 
   private getDataTypeTokens(
@@ -345,7 +347,7 @@ export class InternalExpression<
     return [new ParameterToken(value)];
   }
 
-  private toGroup(expression: any, conjunctionType?: ExpressionConjunctionType) {
+  private toGroup(expression: any, conjunctionType?: ConjunctionType) {
     const newTokens = expression.toTokens();
 
     // Anything above 3 means we need to start grouping this in ( and ).
@@ -695,7 +697,7 @@ export class InternalDefaultExpression<
   DataType,
   IsNotNull extends boolean = true,
 > extends InternalExpression<Config, DataType, IsNotNull, '?column?'> {
-  constructor(tokens: Token[], conjunctionType?: ExpressionConjunctionType) {
+  constructor(tokens: Token[], conjunctionType?: ConjunctionType) {
     super(tokens, '?column?', false, conjunctionType);
   }
 }
