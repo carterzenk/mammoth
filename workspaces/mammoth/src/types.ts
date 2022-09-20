@@ -1,5 +1,7 @@
 import { Uuid } from './data-types';
 
+export type ExpressionConjunctionType = 'AND' | 'OR';
+
 export type ResultType = 'ROWS' | 'AFFECTED_COUNT';
 
 export type PickByValue<T, ValueType> = Pick<

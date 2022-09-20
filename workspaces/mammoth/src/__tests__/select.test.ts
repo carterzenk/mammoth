@@ -42,6 +42,7 @@ describe(`select`, () => {
     id: uuid().primaryKey().default(`gen_random_uuid()`),
     createDate: timestampWithTimeZone().notNull().default(`now()`),
     name: text().notNull(),
+    hasValue: boolean(),
     value: integer(),
     alwaysValue: integer().notNull(),
     enumTest: enumType('my_enum_type', ['A', 'B', 'C'] as const),
@@ -78,7 +79,7 @@ describe(`select`, () => {
     expect(toSql(query)).toMatchInlineSnapshot(`
 Object {
   "parameters": Array [],
-  "text": "SELECT foo.id, foo.create_date \\"createDate\\", foo.name, foo.value, foo.always_value \\"alwaysValue\\", foo.enum_test \\"enumTest\\", bar.id, bar.foo_id \\"fooId\\", bar.name FROM foo INNER JOIN bar ON (bar.foo_id = foo.id)",
+  "text": "SELECT foo.id, foo.create_date \\"createDate\\", foo.name, foo.has_value \\"hasValue\\", foo.value, foo.always_value \\"alwaysValue\\", foo.enum_test \\"enumTest\\", bar.id, bar.foo_id \\"fooId\\", bar.name FROM foo INNER JOIN bar ON (bar.foo_id = foo.id)",
 }
 `);
   });
@@ -93,7 +94,7 @@ Object {
     expect(toSql(query)).toMatchInlineSnapshot(`
 Object {
   "parameters": Array [],
-  "text": "SELECT foo.id, foo.create_date \\"createDate\\", foo.name, foo.value, foo.always_value \\"alwaysValue\\", foo.enum_test \\"enumTest\\", bar.id, bar.foo_id \\"fooId\\", bar.name, bar.id test FROM foo INNER JOIN bar ON (bar.foo_id = foo.id)",
+  "text": "SELECT foo.id, foo.create_date \\"createDate\\", foo.name, foo.has_value \\"hasValue\\", foo.value, foo.always_value \\"alwaysValue\\", foo.enum_test \\"enumTest\\", bar.id, bar.foo_id \\"fooId\\", bar.name, bar.id test FROM foo INNER JOIN bar ON (bar.foo_id = foo.id)",
 }
 `);
   });
@@ -108,7 +109,7 @@ Object {
     expect(toSql(query)).toMatchInlineSnapshot(`
 Object {
   "parameters": Array [],
-  "text": "SELECT foo.id, foo.create_date \\"createDate\\", foo.name, foo.value, foo.always_value \\"alwaysValue\\", foo.enum_test \\"enumTest\\", bar.id test FROM foo INNER JOIN bar ON (bar.foo_id = foo.id)",
+  "text": "SELECT foo.id, foo.create_date \\"createDate\\", foo.name, foo.has_value \\"hasValue\\", foo.value, foo.always_value \\"alwaysValue\\", foo.enum_test \\"enumTest\\", bar.id test FROM foo INNER JOIN bar ON (bar.foo_id = foo.id)",
 }
 `);
   });
@@ -822,6 +823,28 @@ Object {
           600,
         ],
         "text": "SELECT foo.id FROM foo WHERE foo.name IS NULL OR (foo.name = $1 AND foo.name = $2) OR foo.value > $3",
+      }
+    `);
+  });
+
+  it(`should select with right and or grouping with fewer than 3 tokens`, () => {
+    const query = db
+      .select(db.foo.id)
+      .from(db.foo)
+      .where(
+        db.foo.name.eq(`Jane`)
+        .and(
+            db.foo.hasValue
+            .or(db.foo.value.isNull())
+        )
+      );
+
+    expect(toSql(query)).toMatchInlineSnapshot(`
+      Object {
+        "parameters": Array [
+          "Jane",
+        ],
+        "text": "SELECT foo.id FROM foo WHERE foo.name = $1 AND (foo.has_value OR foo.value IS NULL)",
       }
     `);
   });

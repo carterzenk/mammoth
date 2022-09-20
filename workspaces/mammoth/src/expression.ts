@@ -17,7 +17,7 @@ import {
   Token,
 } from './tokens';
 import { DbConfig, GetResultType } from './config';
-import { Err, GetDataType } from './types';
+import { ExpressionConjunctionType, Err, GetDataType } from './types';
 
 import { Column } from './column';
 import { TableDefinition } from './table';
@@ -304,6 +304,11 @@ export class InternalExpression<
     return this.name !== `?column?`;
   }
 
+  /** @internal */
+  getConjunctionType() {
+      return this.conjunctionType;
+  }
+
   // To avoid Name becoming any, it seems we have to use it somewhere. Because we strip internal
   // calls to avoid poluting the public api, we just add a protected function which keeps Name
   // intact and doesn't pollute the api.
@@ -315,6 +320,7 @@ export class InternalExpression<
     private readonly tokens: Token[],
     private readonly name: Name,
     private readonly nameIsAlias = false,
+    private readonly conjunctionType?: ExpressionConjunctionType,
   ) {}
 
   private getDataTypeTokens(
@@ -339,12 +345,21 @@ export class InternalExpression<
     return [new ParameterToken(value)];
   }
 
-  private toGroup(expression: any) {
+  private toGroup(expression: any, conjunctionType?: ExpressionConjunctionType) {
     const newTokens = expression.toTokens();
 
     // Anything above 3 means we need to start grouping this in ( and ).
     if (newTokens.length > 3) {
       return new GroupToken(newTokens);
+    }
+
+    // If the conjunction type does not match the expression's conjunction type, then the expression should also be grouped.
+    if (conjunctionType !== undefined && expression instanceof InternalDefaultExpression) {
+      const expressionConjunctionType = expression.getConjunctionType();
+
+      if (expressionConjunctionType !== undefined && expressionConjunctionType !== conjunctionType) {
+        return new GroupToken(newTokens);
+      }
     }
 
     return new CollectionToken(newTokens);
@@ -354,16 +369,16 @@ export class InternalExpression<
     return new InternalDefaultExpression([
       ...this.tokens,
       new StringToken(`OR`),
-      this.toGroup(expression),
-    ]) as any;
+      this.toGroup(expression, 'OR'),
+    ], 'OR') as any;
   }
 
   and(expression: Expression<any, boolean, any, any> | BooleanQuery<Config, Query<any>>) {
     return new InternalDefaultExpression([
       ...this.tokens,
       new StringToken(`AND`),
-      this.toGroup(expression),
-    ]) as any;
+      this.toGroup(expression, 'AND'),
+    ], 'AND') as any;
   }
 
   andNotExists(expression: Expression<any, any, any, any> | Query<any>) {
@@ -680,8 +695,8 @@ export class InternalDefaultExpression<
   DataType,
   IsNotNull extends boolean = true,
 > extends InternalExpression<Config, DataType, IsNotNull, '?column?'> {
-  constructor(tokens: Token[]) {
-    super(tokens, '?column?');
+  constructor(tokens: Token[], conjunctionType?: ExpressionConjunctionType) {
+    super(tokens, '?column?', false, conjunctionType);
   }
 }
 
